@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html data-theme="light">
+
+<head>
+  <title>TiltyBot 🤖</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/pico.min.css">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+</head>
+
+<body>
+  <!-- <h4>alpha: <span id="alpha"></span></h4> -->
+  <h4>Pan: <span id='pan'></span></h4>
+  <h4>Tilt: <span id='tilt'></span></h4>
+  <label>
+    active: <input id="active" type="checkbox" role="switch">
+  </label>
+  <br />
+
+  <div class="container">
+    <div class="tiltParent">
+      <input id='tiltIn' type="range" min="-179" , max="179" disabled>
+    </div>
+      <input id='panIn' type="range" min="-89" , max="89" disabled>
+
+  </div>
+
+</body>
+<script type="text/javascript" src="/script.js"></script>
+
+<style>
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden
+  }
+
+  .tiltParent {
+    height: 70vw;
+    /* position: relative; */
+
+  }
+
+  #tiltIn {
+    position: absolute;
+    left: 30vw;
+    top: 50vw;
+    margin: 0px;
+    transform: rotate(270deg);
+    width: 90vw;
+
+  }
+  input[type="range"] {
+    max-width: 450px;
+  }
+</style>
+
+</html>
