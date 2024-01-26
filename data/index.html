@@ -22,9 +22,9 @@
 
   <div class="container">
     <div class="tiltParent">
-      <input id='tiltIn' type="range" min="-179" , max="179" disabled>
+      <input id='tiltIn' type="range" min="-179" max="179" value="90" disabled>
     </div>
-      <input id='panIn' type="range" min="-89" , max="89" disabled>
+    <input id='panIn' type="range" min="-89" max="89" value="0" disabled>
 
   </div>
 
@@ -39,21 +39,32 @@
     overflow: hidden
   }
 
-  .tiltParent {
-    height: 70vw;
-    /* position: relative; */
 
+  @media only screen and (max-width: 800px) {
+    .tiltParent {
+      height: 70vw;
+      /* position: relative; */
+
+    }
+
+    #tiltIn {
+      position: absolute;
+      left: 30vw;
+      top: 50vw;
+      margin: 0px;
+      transform: rotate(270deg);
+      width: 90vw;
+    }
   }
 
   #tiltIn {
-    position: absolute;
-    left: 30vw;
-    top: 50vw;
-    margin: 0px;
-    transform: rotate(270deg);
-    width: 90vw;
+      transform: rotate(270deg);
+      position: absolute;
+      left:50vw;
+      top: 30vh;
+      
+    }
 
-  }
   input[type="range"] {
     max-width: 450px;
   }
