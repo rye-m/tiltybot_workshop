@@ -1,13 +1,14 @@
 const active = document.getElementById('active');
 
 const pan = document.getElementById('pan');
-const tilt = document.getElementById('tilt');
+const Intilt = document.getElementById('tilt');
 
 const panIn = document.getElementById('panIn');
 const tiltIn = document.getElementById('tiltIn');
 
 let screenLock;
-let b, g = 0;
+let b=panIn.value;
+let g=tiltIn.value;
 navigator.wakeLock.request('screen')
     .then(lock => {
         screenLock = lock;

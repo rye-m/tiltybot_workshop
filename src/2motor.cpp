@@ -14,10 +14,10 @@
 #include <WebsocketHandler.hpp>
 
 // #define ledPin 4
-#define RXD2 25
-#define TXD2 26
+#define RXD2 14
+#define TXD2 4
 #define DIR_PUBLIC "/"
-
+#define INDEX_PAGE "/2motor.html"
 // // We need to specify some content-type mapping, so the resources get delivered with the
 // // right content type and are displayed correctly in the browser
 char contentTypes[][2][32] = {
@@ -32,12 +32,11 @@ char contentTypes[][2][32] = {
 // // Robot setup
 #include "XL330.h"
 XL330 robot;
-int panServo = 1;
-int tiltServo = 2;
-int prevGamma = 2048;
-int prevBeta = 2048;
-int broadcast = 254;
-
+const int motorOne = 1;
+const int motorTwo = 2;
+const int broadcast = 254;
+int prevM1 = 0;
+int prevM2 = 0;
 void initRobot(HardwareSerial serial)
 {
     // Serial.flush();
@@ -52,11 +51,11 @@ void initRobot(HardwareSerial serial)
     delay(50);
 
     // Blink LED as testing
-    robot.LEDON(panServo);
-    robot.LEDON(tiltServo);
+    robot.LEDON(motorOne);
+    robot.LEDON(motorTwo);
     delay(500);
-    robot.LEDOFF(panServo);
-    robot.LEDOFF(tiltServo);
+    robot.LEDOFF(motorOne);
+    robot.LEDOFF(motorTwo);
     delay(50);
 }
 
@@ -75,6 +74,14 @@ void initLittleFS()
     if (!LittleFS.begin())
     {
         Serial.println("An Error has occurred while mounting LittleFS");
+        return;
+    }
+    else
+    {
+        Serial.print("Used memory: ");
+        Serial.print(LittleFS.usedBytes());
+        Serial.print("/");
+        Serial.println(LittleFS.totalBytes());
         return;
     }
 }
@@ -293,7 +300,7 @@ void handleLittleFS(HTTPRequest *req, HTTPResponse *res)
     if (req->getMethod() == "GET")
     {
         // Redirect / to /index.html
-        std::string reqFile = req->getRequestString() == "/" ? "/index.html" : req->getRequestString();
+        std::string reqFile = req->getRequestString() == "/" ? INDEX_PAGE : req->getRequestString();
 
         // Try to open the file
         std::string filename = std::string(DIR_PUBLIC) + reqFile;
@@ -391,32 +398,25 @@ void ChatHandler::onMessage(WebsocketInputStreambuf *inbuf)
     JsonObject &root = jsonBuffer.parseObject(msg.c_str());
     const char *b = root["b"];
     const char *g = root["g"];
-    int posBeta = int(constrain(atof(b) / .088, 70, 2150));
-    int posGamma = int(map(atof(g), -89, 89, 1024, 3072));
+    int posM1 = int(map(atof(b), 0, 360, 0, 4095));
+    int posM2 = int(map(atof(g), 0, 360, 0, 4095));
 
-    // Serial.print(millis());
-    // Serial.print(",");
-    // Serial.print(b);
-    // Serial.print(",");
-    // Serial.println(g);
-    int dBeta = abs(prevBeta - posBeta);
-    int dGamma = abs(prevGamma - posGamma);
-    if (dBeta > 5) // don't flood the bus
+    Serial.print(millis());
+    Serial.print(",");
+    Serial.print(b);
+    Serial.print(",");
+    Serial.println(g);
+    if (abs(posM1 - prevM1) > 5)
     {
-        if (dBeta < 1000) // at extreme deltas don't move
-        {
-            robot.setJointPosition(tiltServo, posBeta);
-            delay(1);
-            prevBeta = posBeta;
-        }
+        robot.setJointPosition(motorOne, posM1);
+        prevM1 = posM1;
+        delay(1);
     }
-    if (dGamma > 5) // don't flood the bus
+        if (abs(posM2 - prevM2) > 5)
     {
-        if (dGamma < 1000) // at extreme deltas don't move
-        {
-            robot.setJointPosition(panServo, posGamma);
-            delay(1);
-            prevGamma = posGamma;
-        }
+        robot.setJointPosition(motorTwo, posM2);
+        delay(1);
+        prevM2 = posM2;
     }
+
 }
