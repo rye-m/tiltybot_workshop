@@ -76,7 +76,9 @@ void initLittleFS()
     {
         Serial.println("An Error has occurred while mounting LittleFS");
         return;
-    } else{
+    }
+    else
+    {
         Serial.print("Used memory: ");
         Serial.print(LittleFS.usedBytes());
         Serial.print("/");
@@ -105,7 +107,9 @@ void initWiFi()
     }
 
     // Print ESP32 Local IP Address
-    Serial.println(WiFi.localIP());
+    Serial.print("HTTPS://");
+    Serial.print(WiFi.localIP());
+    Serial.println(INDEX_PAGE);
 }
 
 // Websockets setup

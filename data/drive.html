@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html data-theme="light">
+
+<head>
+  <title>DriveBot 🤖</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/lib/pico.min.css">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+</head>
+
+<body>
+  <!-- <h4>alpha: <span id="alpha"></span></h4> -->
+  <h4>Motor1: <span id='pan'></span></h4>
+  <h4>Motor2: <span id='tilt'></span></h4>
+  <label>
+    active: <input id="active" type="checkbox" role="switch">
+  </label>
+  <br />
+
+  <div class="container">
+
+
+  </div>
+
+</body>
+<script type="text/javascript" src="/lib/joystick-controller.min.js"></script>
+</script>
+<script type="text/javascript" defer src="/drive.js"></script>
+
+<style>
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden
+  }
+
+</style>
+
+</html>

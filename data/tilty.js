@@ -1,3 +1,12 @@
+//keep the screen on
+(async () => {
+    try {
+      const wakeLock = await navigator.wakeLock.request("screen");
+    } catch (err) {
+      console.log(`${err.name}, ${err.message}`);
+    }
+  })();
+
 const active = document.getElementById('active');
 
 const pan = document.getElementById('pan');

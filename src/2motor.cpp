@@ -106,7 +106,9 @@ void initWiFi()
     }
 
     // Print ESP32 Local IP Address
-    Serial.println(WiFi.localIP());
+    Serial.print("HTTPS://");
+    Serial.print(WiFi.localIP());
+    Serial.println(INDEX_PAGE);
 }
 
 // Websockets setup
@@ -412,11 +414,10 @@ void ChatHandler::onMessage(WebsocketInputStreambuf *inbuf)
         prevM1 = posM1;
         delay(1);
     }
-        if (abs(posM2 - prevM2) > 5)
+    if (abs(posM2 - prevM2) > 5)
     {
         robot.setJointPosition(motorTwo, posM2);
         delay(1);
         prevM2 = posM2;
     }
-
 }

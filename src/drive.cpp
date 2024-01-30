@@ -17,7 +17,7 @@
 #define RXD2 14
 #define TXD2 4
 #define DIR_PUBLIC "/"
-
+#define INDEX_PAGE "/drive.html"
 // // We need to specify some content-type mapping, so the resources get delivered with the
 // // right content type and are displayed correctly in the browser
 char contentTypes[][2][32] = {
@@ -32,12 +32,11 @@ char contentTypes[][2][32] = {
 // // Robot setup
 #include "XL330.h"
 XL330 robot;
-const int wheel1 = 1;
-const int wheel2 = 2;
+const int motorOne = 1;
+const int motorTwo = 2;
 const int broadcast = 254;
-const int whee1lSpeed = 0;
-const int whee2lSpeed = 0;
-
+int prevM1 = 0;
+int prevM2 = 0;
 void initRobot(HardwareSerial serial)
 {
     // Serial.flush();
@@ -45,19 +44,21 @@ void initRobot(HardwareSerial serial)
     robot.TorqueOFF(broadcast);
     delay(100);
 
-    robot.setControlMode(broadcast, 3);
+    robot.setControlMode(broadcast, 16);
     delay(50);
 
     robot.TorqueON(254); // Turn on the torque to control the servo
     delay(50);
 
     // Blink LED as testing
-    robot.LEDON(panServo);
-    robot.LEDON(tiltServo);
+    robot.LEDON(motorOne);
+    robot.LEDON(motorTwo);
     delay(500);
-    robot.LEDOFF(panServo);
-    robot.LEDOFF(tiltServo);
-    delay(50);
+    robot.LEDOFF(motorOne);
+    robot.LEDOFF(motorTwo);
+    delay(500);
+    robot.setJointSpeed(motorOne, -300);
+    delay(3000);
 }
 
 // // The HTTPS Server comes in a separate namespace. For easier use, include it here.
@@ -76,7 +77,9 @@ void initLittleFS()
     {
         Serial.println("An Error has occurred while mounting LittleFS");
         return;
-    } else{
+    }
+    else
+    {
         Serial.print("Used memory: ");
         Serial.print(LittleFS.usedBytes());
         Serial.print("/");
@@ -105,7 +108,9 @@ void initWiFi()
     }
 
     // Print ESP32 Local IP Address
-    Serial.println(WiFi.localIP());
+    Serial.print("HTTPS://");
+    Serial.print(WiFi.localIP());
+    Serial.println(INDEX_PAGE);
 }
 
 // Websockets setup
@@ -299,7 +304,7 @@ void handleLittleFS(HTTPRequest *req, HTTPResponse *res)
     if (req->getMethod() == "GET")
     {
         // Redirect / to /index.html
-        std::string reqFile = req->getRequestString() == "/" ? "/index.html" : req->getRequestString();
+        std::string reqFile = req->getRequestString() == "/" ? INDEX_PAGE : req->getRequestString();
 
         // Try to open the file
         std::string filename = std::string(DIR_PUBLIC) + reqFile;
@@ -397,32 +402,31 @@ void ChatHandler::onMessage(WebsocketInputStreambuf *inbuf)
     JsonObject &root = jsonBuffer.parseObject(msg.c_str());
     const char *b = root["b"];
     const char *g = root["g"];
-    int posBeta = int(constrain(atof(b) / .088, 70, 2150));
-    int posGamma = int(map(atof(g), -89, 89, 1024, 3072));
+    // int speedM1 = int(map(atof(b), -100, 100, -885, 885));
+    // int speedM2 = int(map(atof(g), -100, 100, -885, 885));
+    int x = map(atof(b), -100, 100, -885, 885);
+    int y = map(atof(g), -100, 100, -885, 885);
+    int speedM1 =  constrain(x+y, -855, 855);
+    int speedM2 = constrain(x-y, -855, 855);
+    
 
     Serial.print(millis());
     Serial.print(",");
-    Serial.print(b);
+    Serial.print(speedM1);
     Serial.print(",");
-    Serial.println(g);
-    int dBeta = abs(prevBeta - posBeta);
-    int dGamma = abs(prevGamma - posGamma);
-    if (dBeta > 5) // don't flood the bus
+    Serial.println(speedM2);
+
+    if (abs(speedM1 - prevM1) > 5 || speedM1 == 0)
     {
-        if (dBeta < 1000) // at extreme deltas don't move
-        {
-            robot.setJointPosition(tiltServo, posBeta);
-            delay(1);
-            prevBeta = posBeta;
-        }
+        robot.setJointSpeed(motorOne, speedM1);
+        prevM1 = speedM1;
+        delay(10);
     }
-    if (dGamma > 5) // don't flood the bus
+        if (abs(speedM2 - prevM2) > 5 || speedM2 == 0)
     {
-        if (dGamma < 1000) // at extreme deltas don't move
-        {
-            robot.setJointPosition(panServo, posGamma);
-            delay(1);
-            prevGamma = posGamma;
-        }
+        robot.setJointSpeed(motorTwo, speedM2);
+        delay(10);
+        prevM2 = speedM2;
     }
+
 }
