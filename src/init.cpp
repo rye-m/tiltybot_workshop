@@ -1,11 +1,8 @@
 #include <Arduino.h>
-#include <WiFi.h>
 #include <LittleFS.h>
-#include <FS.h>
-#include <ArduinoJson.h>
-#include <string>
+#include "XL330.h"
+#include <WiFi.h>
 
-// // Includes for the server
 #include <HTTPSServer.hpp>
 #include <SSLCert.hpp>
 #include <HTTPRequest.hpp>
@@ -13,163 +10,34 @@
 #include <util.hpp>
 #include <WebsocketHandler.hpp>
 
-// #define ledPin 4
-#define RXD2 14
-#define TXD2 4
 #define DIR_PUBLIC "/"
-#define INDEX_PAGE "/2motor.html"
-// // We need to specify some content-type mapping, so the resources get delivered with the
-// // right content type and are displayed correctly in the browser
-char contentTypes[][2][32] = {
-    {".html", "text/html"},
-    {".css", "text/css"},
-    {".js", "application/javascript"},
-    {".json", "application/json"},
-    {".png", "image/png"},
-    {".jpg", "image/jpg"},
-    {"", ""}};
+#define INDEX_PAGE "/tilty.html"
+#define MAX_CLIENTS 4
 
-// // Robot setup
-#include "XL330.h"
-XL330 robot;
-const int motorOne = 1;
-const int motorTwo = 2;
-const int broadcast = 254;
-int prevM1 = 0;
-int prevM2 = 0;
-
-// // The HTTPS Server comes in a separate namespace. For easier use, include it here.
 using namespace httpsserver;
 
-// // We just create a reference to the server here. We cannot call the constructor unless
-// // we have initialized the LittleFS and read or created the certificate
-HTTPSServer *secureServer;
+const int panServo = 1;
+const int tiltServo = 2;
+const int broadcast = 254;
 
-SSLCert *getCertificate();
-void handleLittleFS(HTTPRequest *req, HTTPResponse *res);
-
-void initLittleFS()
+void initRobot(HardwareSerial &serialPort, XL330 &robot, int mode)
 {
-    if (!LittleFS.begin())
-    {
-        Serial.println("An Error has occurred while mounting LittleFS");
-        return;
-    }
-    else
-    {
-        Serial.print("Used memory: ");
-        Serial.print(LittleFS.usedBytes());
-        Serial.print("/");
-        Serial.println(LittleFS.totalBytes());
-        return;
-    }
-}
-
-// // NETWORK SETUP
-// // Replace with your network credentials
-const char *ssid = "deviceFarm";
-const char *password = "device@theFarm";
-
-// // Initialize WiFi
-void initWiFi()
-{
-    // WiFi.softAP(ssid);
-    // IPAddress IP = WiFi.softAPIP();
-    // Serial.print("AP IP address: ");
-    // Serial.println(IP);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(1000);
-        Serial.println("Connecting to WiFi..");
-    }
-
-    // Print ESP32 Local IP Address
-    Serial.print("HTTPS://");
-    Serial.print(WiFi.localIP());
-    Serial.println(INDEX_PAGE);
-}
-
-// Websockets setup
-const int MAX_CLIENTS = 4;
-// As websockets are more complex, they need a custom class that is derived from WebsocketHandler
-class ChatHandler : public WebsocketHandler
-{
-public:
-    static WebsocketHandler *create();
-
-    // This method is called when a message arrives
-    void onMessage(WebsocketInputStreambuf *input);
-
-    // Handler function on connection close
-    void onClose();
-};
-
-// Simple array to store the active clients:
-ChatHandler *activeClients[MAX_CLIENTS];
-
-void initWs()
-{
-    for (int i = 0; i < MAX_CLIENTS; i++)
-        activeClients[i] = nullptr;
-}
-
-void setup()
-{
-    // For logging
-    Serial.begin(115200);
-    Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
-
-    initLittleFS();
-
-    // Now that LittleFS is ready, we can create or load the certificate
-    SSLCert *cert = getCertificate();
-    if (cert == NULL)
-    {
-        Serial.println("Could not load certificate. Stop.");
-        while (true)
-            ;
-    }
-
-    // Connect to WiFi
-    initWiFi();
-
-    // Create the server with the certificate we loaded before
-    secureServer = new HTTPSServer(cert);
-
-    // We register the LittleFS handler as the default node, so every request that does
-    // not hit any other node will be redirected to the file system.
-    ResourceNode *LittleFSNode = new ResourceNode("", "", &handleLittleFS);
-    secureServer->setDefaultNode(LittleFSNode);
-
-    // create ws node
-    WebsocketNode *chatNode = new WebsocketNode("/ws", &ChatHandler::create);
-
-    // Adding the node to the server works in the same way as for all other nodes
-    secureServer->registerNode(chatNode);
-
-    Serial.println("Starting server...");
-    secureServer->start();
-    if (secureServer->isRunning())
-    {
-        Serial.println("Server ready.");
-    }
-
-    robot.begin(Serial2);
+    serialPort.flush();
+    robot.begin(serialPort);
     robot.TorqueOFF(broadcast);
     delay(50);
-    robot.setControlMode(broadcast, 3);
+    robot.setControlMode(broadcast, mode);
     delay(50);
     robot.TorqueON(broadcast);
     delay(50);
-}
 
-void loop()
-{
-    // This call will let the server do its work
-    secureServer->loop();
-
-    delay(5);
+    // Blink LED as testing
+    robot.LEDON(panServo);
+    robot.LEDON(tiltServo);
+    delay(500);
+    robot.LEDOFF(panServo);
+    robot.LEDOFF(tiltServo);
+    delay(50);
 }
 
 /**
@@ -269,11 +137,60 @@ SSLCert *getCertificate()
     }
 }
 
-/**
- * This handler function will try to load the requested resource from LittleFS's /public folder.
- *
- * If the method is not GET, it will throw 405, if the file is not found, it will throw 404.
- */
+SSLCert *initLittleFS()
+{
+    if (!LittleFS.begin())
+    {
+        Serial.println("An Error has occurred while mounting LittleFS");
+    }
+    else
+    {
+        Serial.print("Used memory: ");
+        Serial.print(LittleFS.usedBytes());
+        Serial.print("/");
+        Serial.println(LittleFS.totalBytes());
+    }
+    SSLCert *cert = getCertificate();
+    if (cert == NULL)
+    {
+        Serial.println("Could not load certificate. Stop.");
+        while (true)
+            ;
+    }
+    return cert;
+}
+
+// // Initialize WiFi
+void initWiFi(const char *ssid, const char *password, const char *index)
+{
+    // WiFi.softAP(ssid);
+    // IPAddress IP = WiFi.softAPIP();
+    // Serial.print("AP IP address: ");
+    // Serial.println(IP);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(1000);
+        Serial.println("Connecting to WiFi..");
+    }
+
+    // Print ESP32 Local IP Address
+    Serial.print("HTTPS://");
+    Serial.print(WiFi.localIP());
+    Serial.println(index);
+}
+
+// // We need to specify some content-type mapping, so the resources get delivered with the
+// // right content type and are displayed correctly in the browser
+char contentTypes[][2][32] = {
+    {".html", "text/html"},
+    {".css", "text/css"},
+    {".js", "application/javascript"},
+    {".json", "application/json"},
+    {".png", "image/png"},
+    {".jpg", "image/jpg"},
+    {"", ""}};
+
 void handleLittleFS(HTTPRequest *req, HTTPResponse *res)
 {
 
@@ -335,68 +252,61 @@ void handleLittleFS(HTTPRequest *req, HTTPResponse *res)
     }
 }
 
-WebsocketHandler *ChatHandler::create()
+HTTPSServer *initServer(SSLCert *cert)
 {
-    Serial.println("Creating new chat client!");
-    ChatHandler *handler = new ChatHandler();
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        if (activeClients[i] == nullptr)
-        {
-            activeClients[i] = handler;
-            break;
-        }
-    }
-    return handler;
+    HTTPSServer *secureServer = new HTTPSServer(cert);
+    ResourceNode *LittleFSNode = new ResourceNode("", "", &handleLittleFS);
+    secureServer->setDefaultNode(LittleFSNode);
+
+    return secureServer;
 }
 
-// When the websocket is closing, we remove the client from the array
-void ChatHandler::onClose()
-{
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        if (activeClients[i] == this)
-        {
-            ChatHandler *client = activeClients[i];
-            activeClients[i] = nullptr;
-            delete client;
-            break;
-        }
-    }
-}
+// class ChatHandler : public WebsocketHandler
+// {
+// public:
+//     static WebsocketHandler *create();
 
-void ChatHandler::onMessage(WebsocketInputStreambuf *inbuf)
-{
-    // Get the input message
-    std::ostringstream ss;
-    std::string msg;
-    ss << inbuf;
-    msg = ss.str();
-    // Serial.println(msg.c_str());
-    const size_t capacity = JSON_OBJECT_SIZE(2) + 30;
-    DynamicJsonBuffer jsonBuffer(capacity);
+//     // This method is called when a message arrives
+//     void onMessage(WebsocketInputStreambuf *input);
 
-    JsonObject &root = jsonBuffer.parseObject(msg.c_str());
-    const char *b = root["b"];
-    const char *g = root["g"];
-    int posM1 = int(map(atof(b), 0, 360, 0, 4095));
-    int posM2 = int(map(atof(g), 0, 360, 0, 4095));
+//     // Handler function on connection close
+//     void onClose();
+// };
 
-    Serial.print(millis());
-    Serial.print(",");
-    Serial.print(b);
-    Serial.print(",");
-    Serial.println(g);
-    if (abs(posM1 - prevM1) > 5)
-    {
-        robot.setJointPosition(motorOne, posM1);
-        prevM1 = posM1;
-        delay(1);
-    }
-    if (abs(posM2 - prevM2) > 5)
-    {
-        robot.setJointPosition(motorTwo, posM2);
-        delay(1);
-        prevM2 = posM2;
-    }
-}
+// // Simple array to store the active clients:
+// ChatHandler *activeClients[MAX_CLIENTS];
+
+// void initWs()
+// {
+//     for (int i = 0; i < MAX_CLIENTS; i++)
+//         activeClients[i] = nullptr;
+// }
+
+// WebsocketHandler *ChatHandler::create()
+// {
+//     Serial.println("Creating new chat client!");
+//     ChatHandler *handler = new ChatHandler();
+//     for (int i = 0; i < MAX_CLIENTS; i++)
+//     {
+//         if (activeClients[i] == nullptr)
+//         {
+//             activeClients[i] = handler;
+//             break;
+//         }
+//     }
+//     return handler;
+// }
+
+// void ChatHandler::onClose()
+// {
+//     for (int i = 0; i < MAX_CLIENTS; i++)
+//     {
+//         if (activeClients[i] == this)
+//         {
+//             ChatHandler *client = activeClients[i];
+//             activeClients[i] = nullptr;
+//             delete client;
+//             break;
+//         }
+//     }
+// }
