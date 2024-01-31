@@ -3,6 +3,7 @@
 #include <string>
 
 #include "init.h"
+#include "network.h"
 
 // // Includes for the server
 #include <HTTPSServer.hpp>
@@ -27,11 +28,6 @@ int prevM2 = 0;
 using namespace httpsserver;
 
 HTTPSServer *secureServer;
-
-// // NETWORK SETUP
-// // Replace with your network credentials
-const char *ssid = "deviceFarm";
-const char *password = "device@theFarm";
 
 // Websockets setup
 const int MAX_CLIENTS = 4;
