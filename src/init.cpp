@@ -13,6 +13,7 @@
 #define DIR_PUBLIC "/"
 #define INDEX_PAGE "/tilty.html"
 #define MAX_CLIENTS 4
+#define AP 1
 
 using namespace httpsserver;
 
@@ -161,23 +162,31 @@ SSLCert *initLittleFS()
 }
 
 // // Initialize WiFi
-void initWiFi(const char *ssid, const char *password, const char *index)
+void initWiFi(const char *ssid, const char *password, const char *index, int mode = AP)
 {
-    // WiFi.softAP(ssid);
-    // IPAddress IP = WiFi.softAPIP();
-    // Serial.print("AP IP address: ");
-    // Serial.println(IP);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED)
+    if (mode == AP)
     {
-        delay(1000);
-        Serial.println("Connecting to WiFi..");
+        WiFi.softAP(ssid);
+        IPAddress IP = WiFi.softAPIP();
+        Serial.print("AP IP address: ");
+        Serial.print("HTTPS://");
+        Serial.print(IP);
+        Serial.println(index);
     }
+    else
+    {
+        WiFi.begin(ssid, password);
+        while (WiFi.status() != WL_CONNECTED)
+        {
+            delay(1000);
+            Serial.println("Connecting to WiFi..");
+        }
 
-    // Print ESP32 Local IP Address
-    Serial.print("HTTPS://");
-    Serial.print(WiFi.localIP());
-    Serial.println(index);
+        // Print ESP32 Local IP Address
+        Serial.print("HTTPS://");
+        Serial.print(WiFi.localIP());
+        Serial.println(index);
+    }
 }
 
 // // We need to specify some content-type mapping, so the resources get delivered with the
