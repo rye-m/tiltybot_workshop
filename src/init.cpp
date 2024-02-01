@@ -1,7 +1,9 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <LittleFS.h>
 #include "XL330.h"
 #include <WiFi.h>
+#include <tuple>
 
 #include <HTTPSServer.hpp>
 #include <SSLCert.hpp>
@@ -9,12 +11,9 @@
 #include <HTTPResponse.hpp>
 #include <util.hpp>
 #include <WebsocketHandler.hpp>
+#include "init.h"
 
-#define DIR_PUBLIC "/"
 #define INDEX_PAGE "/tilty.html"
-#define MAX_CLIENTS 4
-#define AP 1
-
 using namespace httpsserver;
 
 const int panServo = 1;
@@ -270,52 +269,19 @@ HTTPSServer *initServer(SSLCert *cert)
     return secureServer;
 }
 
-// class ChatHandler : public WebsocketHandler
-// {
-// public:
-//     static WebsocketHandler *create();
+std::tuple<int, int> parseData(WebsocketInputStreambuf *inbuf)
+{
+    return std::make_tuple(10, 20);
+    // Get the input message
+    std::ostringstream ss;
+    std::string msg;
+    ss << inbuf;
+    msg = ss.str();
+    const size_t capacity = JSON_OBJECT_SIZE(2) + 30;
+    DynamicJsonBuffer jsonBuffer(capacity);
 
-//     // This method is called when a message arrives
-//     void onMessage(WebsocketInputStreambuf *input);
-
-//     // Handler function on connection close
-//     void onClose();
-// };
-
-// // Simple array to store the active clients:
-// ChatHandler *activeClients[MAX_CLIENTS];
-
-// void initWs()
-// {
-//     for (int i = 0; i < MAX_CLIENTS; i++)
-//         activeClients[i] = nullptr;
-// }
-
-// WebsocketHandler *ChatHandler::create()
-// {
-//     Serial.println("Creating new chat client!");
-//     ChatHandler *handler = new ChatHandler();
-//     for (int i = 0; i < MAX_CLIENTS; i++)
-//     {
-//         if (activeClients[i] == nullptr)
-//         {
-//             activeClients[i] = handler;
-//             break;
-//         }
-//     }
-//     return handler;
-// }
-
-// void ChatHandler::onClose()
-// {
-//     for (int i = 0; i < MAX_CLIENTS; i++)
-//     {
-//         if (activeClients[i] == this)
-//         {
-//             ChatHandler *client = activeClients[i];
-//             activeClients[i] = nullptr;
-//             delete client;
-//             break;
-//         }
-//     }
-// }
+    JsonObject &root = jsonBuffer.parseObject(msg.c_str());
+    const char *b = root["b"];
+    const char *g = root["g"];
+    return std::make_tuple(atof(b), atof(g));
+}

@@ -1,6 +1,5 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include <string>
+#include <tuple>
 
 #include "init.h"
 #include "network.h"
@@ -12,47 +11,26 @@
 #include <util.hpp>
 #include <WebsocketHandler.hpp>
 
-#define RXD2 14
-#define TXD2 4
 #define INDEX_PAGE "/tilty.html"
-#define POSITION_MODE 3
 
 // // Robot setup
 #include "XL330.h"
 XL330 robot;
-const int panServo = 1;
-const int tiltServo = 2;
 int prevGamma = 2048;
 int prevBeta = 2048;
-const int broadcast = 254;
 
 using namespace httpsserver;
 
 HTTPSServer *secureServer;
 
-// Websockets setup
-const int MAX_CLIENTS = 4;
-// As websockets are more complex, they need a custom class that is derived from WebsocketHandler
-class ChatHandler : public WebsocketHandler
+// class for robot Controler
+class ControlHandler : public WebsocketHandler
 {
 public:
     static WebsocketHandler *create();
-
     // This method is called when a message arrives
     void onMessage(WebsocketInputStreambuf *input);
-
-    // Handler function on connection close
-    void onClose();
 };
-
-// Simple array to store the active clients:
-ChatHandler *activeClients[MAX_CLIENTS];
-
-void initWs()
-{
-    for (int i = 0; i < MAX_CLIENTS; i++)
-        activeClients[i] = nullptr;
-}
 
 void setup()
 {
@@ -63,16 +41,16 @@ void setup()
     SSLCert *cert = initLittleFS();
 
     // Connect to WiFi
-    initWiFi(ssid, password, INDEX_PAGE);
+    initWiFi(ssid, password, INDEX_PAGE, AP);
 
     // Create the server with the certificate we loaded before
     secureServer = initServer(cert);
 
     // create ws node
-    WebsocketNode *chatNode = new WebsocketNode("/ws", &ChatHandler::create);
+    WebsocketNode *controlNode = new WebsocketNode("/ws", &ControlHandler::create);
 
     // Adding the node to the server works in the same way as for all other nodes
-    secureServer->registerNode(chatNode);
+    secureServer->registerNode(controlNode);
 
     Serial.println("Starting server...");
     secureServer->start();
@@ -91,65 +69,33 @@ void loop()
     delay(5);
 }
 
-WebsocketHandler *ChatHandler::create()
+WebsocketHandler *ControlHandler::create()
 {
-    Serial.println("Creating new chat client!");
-    ChatHandler *handler = new ChatHandler();
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        if (activeClients[i] == nullptr)
-        {
-            activeClients[i] = handler;
-            break;
-        }
-    }
+    Serial.println("Creating new control client!");
+    ControlHandler *handler = new ControlHandler();
     return handler;
 }
 
-// When the websocket is closing, we remove the client from the array
-void ChatHandler::onClose()
+void ControlHandler::onMessage(WebsocketInputStreambuf *inbuf)
 {
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        if (activeClients[i] == this)
-        {
-            ChatHandler *client = activeClients[i];
-            activeClients[i] = nullptr;
-            delete client;
-            break;
-        }
-    }
-}
-
-void ChatHandler::onMessage(WebsocketInputStreambuf *inbuf)
-{
-    // Get the input message
-    std::ostringstream ss;
-    std::string msg;
-    ss << inbuf;
-    msg = ss.str();
-    // Serial.println(msg.c_str());
-    const size_t capacity = JSON_OBJECT_SIZE(2) + 30;
-    DynamicJsonBuffer jsonBuffer(capacity);
-
-    JsonObject &root = jsonBuffer.parseObject(msg.c_str());
-    const char *b = root["b"];
-    const char *g = root["g"];
-    int posBeta = int(constrain(atof(b) / .088, 70, 2150));
-    int posGamma = int(map(atof(g), -89, 89, 1024, 3072));
+    std::tuple<int, int> result = parseData(inbuf);
+    int x = std::get<0>(result);
+    int y = std::get<1>(result);
+    int posBeta = int(constrain(x / .088, 70, 2150));
+    int posGamma = int(map(y, -89, 89, 1024, 3072));
 
     Serial.print(millis());
     Serial.print(",");
-    Serial.print(b);
+    Serial.print(x);
     Serial.print(",");
-    Serial.println(g);
+    Serial.println(y);
     int dBeta = abs(prevBeta - posBeta);
     int dGamma = abs(prevGamma - posGamma);
     if (dBeta > 5) // don't flood the bus
     {
         if (dBeta < 1000) // at extreme deltas don't move
         {
-            robot.setJointPosition(tiltServo, posBeta);
+            robot.setJointPosition(MOTOR2, posBeta);
             delay(1);
             prevBeta = posBeta;
         }
@@ -158,7 +104,7 @@ void ChatHandler::onMessage(WebsocketInputStreambuf *inbuf)
     {
         if (dGamma < 1000) // at extreme deltas don't move
         {
-            robot.setJointPosition(panServo, posGamma);
+            robot.setJointPosition(MOTOR1, posGamma);
             delay(1);
             prevGamma = posGamma;
         }
