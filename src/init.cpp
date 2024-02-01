@@ -16,27 +16,23 @@
 #define INDEX_PAGE "/tilty.html"
 using namespace httpsserver;
 
-const int panServo = 1;
-const int tiltServo = 2;
-const int broadcast = 254;
-
 void initRobot(HardwareSerial &serialPort, XL330 &robot, int mode)
 {
     serialPort.flush();
     robot.begin(serialPort);
-    robot.TorqueOFF(broadcast);
+    robot.TorqueOFF(BROADCAST);
     delay(50);
-    robot.setControlMode(broadcast, mode);
+    robot.setControlMode(BROADCAST, mode);
     delay(50);
-    robot.TorqueON(broadcast);
+    robot.TorqueON(BROADCAST);
     delay(50);
 
     // Blink LED as testing
-    robot.LEDON(panServo);
-    robot.LEDON(tiltServo);
+    robot.LEDON(MOTOR1);
+    robot.LEDON(MOTOR2);
     delay(500);
-    robot.LEDOFF(panServo);
-    robot.LEDOFF(tiltServo);
+    robot.LEDOFF(MOTOR1);
+    robot.LEDOFF(MOTOR2);
     delay(50);
 }
 
@@ -271,7 +267,6 @@ HTTPSServer *initServer(SSLCert *cert)
 
 std::tuple<int, int> parseData(WebsocketInputStreambuf *inbuf)
 {
-    return std::make_tuple(10, 20);
     // Get the input message
     std::ostringstream ss;
     std::string msg;
