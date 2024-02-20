@@ -1,4 +1,4 @@
-![image](https://github.com/rye-m/tiltybot_workshop/assets/120436433/da517744-8476-4815-bbb8-ee1ecd834e29)# Interactive UX design Workshop
+# Interactive UX design Workshop
 02 Feb 2024
 
 
